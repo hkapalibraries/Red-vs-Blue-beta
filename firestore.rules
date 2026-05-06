@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+    
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn(); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidGameState(data) {
+      let hasRequired = data.keys().hasAll(['sessionId', 'status', 'targetScore']) && data.keys().size() >= 3;
+      let validSessionId = data.sessionId is string && data.sessionId.size() <= 128;
+      let validStatus = data.status in ['waiting', 'playing', 'finished', 'reward'];
+      let validTargetScore = data.targetScore is number && data.targetScore >= 1 && data.targetScore <= 1000;
+      
+      // Optional fields
+      let validWinner = !('winner' in data) || data.winner in ['red', 'blue', 'none'];
+      let validQuestionText = !('question' in data) || (data.question.keys().hasAll(['text', 'options', 'correctOptionIndex']) && data.question.text is string && data.question.text.size() <= 1000);
+      
+      return hasRequired && validSessionId && validStatus && validTargetScore && validWinner && validQuestionText;
+    }
+
+    match /game_state/{docId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidGameState(incoming()) && docId == 'current';
+      allow update: if isAdmin() && isValidGameState(incoming());
+      allow delete: if isAdmin();
+    }
+
+    function isValidGameEvent(data) {
+      let hasRequired = data.keys().hasAll(['sessionId', 'team', 'userId', 'createdAt']) && data.keys().size() == 4;
+      let validSessionId = data.sessionId is string && data.sessionId.size() <= 128;
+      let validTeam = data.team in ['red', 'blue'];
+      let validUserId = data.userId is string && data.userId == request.auth.uid;
+      let validCreatedAt = data.createdAt == request.time;
+      return hasRequired && validSessionId && validTeam && validUserId && validCreatedAt;
+    }
+
+    match /rvb_events/{eventId} {
+      // Need to add relational checks for `allow list` if we want to be strict,
+      // but TV needs to list all for a session.
+      // So checking if the query explicitly queries for a sessionId is ideal.
+      // We can verify `resource.data.sessionId` matches the TV's requested session, 
+      // but firestore allows querying by sessionId.
+      // We will allow read if isSignedIn.
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidGameEvent(incoming());
+      allow update, delete: if false; // Events are immutable
+    }
+    
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+    }
+  }
+}

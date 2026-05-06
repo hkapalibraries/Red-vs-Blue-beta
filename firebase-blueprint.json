@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "GameState": {
+      "title": "GameState",
+      "description": "Global state of the game controlled by the admin.",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "Unique ID for the current game session."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["waiting", "playing", "finished", "reward"],
+          "description": "Current phase of the game."
+        },
+        "targetScore": {
+          "type": "number",
+          "description": "Score required to win."
+        },
+        "question": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "options": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "correctOptionIndex": { "type": "number" }
+          }
+        },
+        "winner": {
+          "type": "string",
+          "enum": ["red", "blue", "none"]
+        }
+      },
+      "required": ["sessionId", "status", "targetScore"]
+    },
+    "GameEvent": {
+      "title": "GameEvent",
+      "description": "An event indicating a correct answer by a team member.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "team": {
+          "type": "string",
+          "enum": ["red", "blue"]
+        },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sessionId", "team", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/game_state/{docId}": {
+      "schema": { "$ref": "#/entities/GameState" },
+      "description": "Singleton configuration/state document (docId='current'). Admin controls this."
+    },
+    "/rvb_events/{eventId}": {
+      "schema": { "$ref": "#/entities/GameEvent" },
+      "description": "Score events for the game."
+    }
+  }
+}
