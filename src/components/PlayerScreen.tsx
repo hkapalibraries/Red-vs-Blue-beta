@@ -6,7 +6,7 @@ import { GameEvent, Team } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function PlayerScreen() {
-  const { gameState } = useGameState();
+  const { gameState, scores } = useGameState();
   const [team, setTeam] = useState<Team | null>(null);
   const [answeredQ, setAnsweredQ] = useState<string | null>(null); // track current Q text to prevent multiple answers
   const [flashScore, setFlashScore] = useState(false);
@@ -71,6 +71,19 @@ export default function PlayerScreen() {
   const bgColor = isRed ? 'bg-red-600' : 'bg-blue-600';
   const activeColor = isRed ? 'active:bg-red-800' : 'active:bg-blue-800';
 
+  let winnerText = '遊戲結束!';
+  let amIWinner = false;
+  if (gameState?.status === 'finished' || gameState?.status === 'reward') {
+     const targetScore = gameState.targetScore || 100;
+     if (scores.red >= targetScore) {
+       winnerText = '紅隊獲勝!';
+       amIWinner = team === 'red';
+     } else if (scores.blue >= targetScore) {
+       winnerText = '藍隊獲勝!';
+       amIWinner = team === 'blue';
+     }
+  }
+
   return (
     <div className={`h-[100dvh] w-full flex flex-col font-sans ${bgColor} text-white selection:bg-white/30 transition-colors duration-500`}>
       {/* Header */}
@@ -100,12 +113,34 @@ export default function PlayerScreen() {
              準備中...<br/>看大螢幕，等待遊戲開始
            </div>
         ) : gameState.status === 'finished' || gameState.status === 'reward' ? (
-           <div className="text-center">
-             <div className="text-4xl font-bold mb-6 text-yellow-300">遊戲結束!</div>
-             {gameState.status === 'reward' && (
-               <div className="text-xl bg-white text-black p-6 rounded-2xl shadow-xl font-bold">
-                 看大螢幕獲勝結果！<br/><br/>
-                 若您的隊伍獲勝，<br/>請前往服務台領取專屬小禮物！
+           <div className="text-center flex flex-col items-center justify-center h-full space-y-8 absolute inset-0 bg-black/40 backdrop-blur-sm z-10">
+             <motion.div 
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`text-6xl font-black ${amIWinner ? 'text-yellow-400 drop-shadow-[0_0_30px_rgba(250,204,21,0.8)]' : 'text-gray-300'} tracking-wide`}
+             >
+                {winnerText}
+             </motion.div>
+             
+             {amIWinner && (
+                <div className="text-3xl font-bold animate-bounce text-white drop-shadow-md">
+                   🥳 恭喜您的隊伍獲勝！ 🥳
+                </div>
+             )}
+
+             {gameState.status === 'reward' && amIWinner && (
+               <motion.div 
+                 initial={{ y: 50, opacity: 0 }}
+                 animate={{ y: 0, opacity: 1 }}
+                 className="text-2xl bg-gradient-to-r from-yellow-400 to-yellow-300 text-yellow-950 border-4 border-white p-8 rounded-3xl shadow-2xl font-black mx-6 leading-relaxed"
+               >
+                 🏆 請憑此畫面<br/>前往服務台領取專屬小禮物！
+               </motion.div>
+             )}
+
+             {gameState.status === 'reward' && !amIWinner && (
+               <div className="text-xl bg-white/20 text-white p-6 rounded-2xl font-bold mt-8 shadow-lg backdrop-blur-md border border-white/20">
+                 再接再厲！<br/>感謝您的參與 🎉
                </div>
              )}
            </div>
